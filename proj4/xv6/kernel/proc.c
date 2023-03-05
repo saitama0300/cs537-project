@@ -157,7 +157,7 @@ fork(void)
 {
   int i, pid;
   struct proc *np, *prnt;
-
+  // cprintf("forking.....\n");
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -187,7 +187,7 @@ fork(void)
 
   prnt = np->parent;
   int k = searchpid(prnt->pid);
-  cprintf("Forking %d\n",pid);
+
   if(k==-1)
     return pid;
 
@@ -328,18 +328,20 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
     if(chosen) {
-      // cprintf("Hi, Chosen Pid: %d\n",chosen->pid);
+      
+
       int index = searchpid(chosen->pid);
       ptable.pstate_info.pass[index] += ptable.pstate_info.strides[index];
       ptable.pstate_info.ticks[index] += 1;
       proc = chosen;
+      // cprintf("%d,%d,%d\n",ptable.pstate_info.pass[searchpid(3)], ptable.pstate_info.pass[searchpid(4)], ptable.pstate_info.pass[searchpid(5)]);
       switchuvm(chosen);
       chosen->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       // cprintf("Hi, Back from Chosen Pid: %d\n",chosen->pid);
       switchkvm();
 
-      // Process is done running for now.
+      // Process is done running for now. 
       // It should have changed its p->state before coming back.
       proc = 0;
     }
