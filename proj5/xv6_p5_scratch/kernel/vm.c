@@ -312,20 +312,21 @@ copyuvm(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
 
-    *pte = (~ PTE_W) & *pte; 
+    *pte = (~ PTE_W) & *pte;  // read only parent page
     flags = PTE_FLAGS(*pte);
     pa = PTE_ADDR(*pte);
 
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) 
     {
         freevm(d);
-        lcr3(PADDR(pgdir)); 
+        lcr3(PADDR(pgdir));   // flush tlb
         return 0;
     }
     incrRefCnt(pa);
   }
   lcr3(PADDR(pgdir));
   return d;
+
 }
 
 // Map user virtual address to kernel physical address.
@@ -367,18 +368,95 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   }
   return 0;
 }
-void CoWPageFaultHandler(void)
+void CoWPageFaultHandler()
 { 
+/*
+    uint va = rcr2();       // get va
+
+  //errors taken care of
+  if(proc == 0)     // null process
+  { 
+      cprintf("Error in COW_handle_pgfault: No user process from cr2=0x%x\n", va); //va = rcr2()
+      panic("Page_Fault");
+  }
+
+  pte_t *pte;
+
+  pte = walkpgdir(proc->pgdir, (void*)va, 0);
+
+  // page has write perm_S enabled
+    if(PTE_W & *pte)
+    {
+        //cprintf("error code: %x, addr 0x%x\n", err_code, va);
+      
+        panic("Error in COW_handle_pgfault: Already writeable");
+    }
+
+  if( pte == 0  || !(*pte) || va >= USERTOP || !PTE_U || ! PTE_P )
+  { 
+      proc->killed = 1;
+      cprintf("Error in COW_handle_pgfault: Illegal (virtual) addr on address 0x%x, killing proc %s id (pid) %d\n",  va, proc->name, proc->pid);
+      return;
+  }
+
+    uint pa = PTE_ADDR(*pte);                     //get physical addr
+    uint refC = freeCnt((pa)>>PGSHIFT);                // get ref. count of curr. page
+
+    if(refC < 1)
+    {
+        panic("Error in COW_handle_pgfault: Incorrect Reference Count");
+    }
+
+    else if(refC == 1)
+    {
+        *pte = PTE_W | *pte;   // writable now since alone 
+        
+        //flush tlb because PTEs changed
+        lcr3(PTE_ADDR(proc->pgdir));
+        return;
+    }
+
+    else                       //refC > 1
+    {
+        //try for new page
+        char* mem = kalloc();
+
+        if(mem != 0)  // page available
+        {   
+          memmove(mem, (char*)PADDR(pa), PGSIZE); // from line 387
+
+          // new PTE to new page
+          *pte =  PTE_U | PTE_W | PTE_P | PADDR(mem);
+
+          decrRefCnt(pa);
+
+          //flush tlb because PTEs changed
+          lcr3(PTE_ADDR(proc->pgdir));
+          return;
+        }
+
+        proc->killed = 1;
+
+        cprintf("Error in COW_handle_pgfault: Out of memory, kill proc %s with pid %d\n", proc->name, proc->pid);          
+        return;
+
+    }
+
+    //flush tlb because PTEs changed
+    lcr3(PTE_ADDR(proc->pgdir));
+*/
     uint va = rcr2();     
 
     pte_t *pte;
     pte = walkpgdir(proc->pgdir, (void*)va, 0);
 
-    if(proc==0) 
-        return;
+    if(proc==0) {
+      panic("");
+    }
 
-    if(PTE_W & *pte)
-        return;
+    if(PTE_W & *pte) {
+      panic("");
+    }
 
     uint userFlag = PTE_U&(*pte);
     uint presentFlag = PTE_P&(*pte);
@@ -389,9 +467,10 @@ void CoWPageFaultHandler(void)
         cprintf("CoW: Invalid virtual address\n");
         return;
     }
-    uint ref_cnt = freeCnt(PTE_ADDR(*pte)>>PGSHIFT); 
+    uint pa = PTE_ADDR(*pte);
+    uint ref_cnt = freeCnt(pa>>PGSHIFT); 
     if(ref_cnt < 1) {
-      return;
+        panic("");
     }       
     else if(ref_cnt == 1)
     {
@@ -402,9 +481,9 @@ void CoWPageFaultHandler(void)
         char* mem = kalloc();
         if(mem != 0)  
         {   
-          memmove(mem, (char*)PTE_ADDR(*pte), PGSIZE); 
+          memmove(mem, (char*)PADDR(pa), PGSIZE); 
           *pte =  PTE_U | PTE_W | PTE_P | PADDR(mem);
-          decrRefCnt(PTE_ADDR(*pte));
+          decrRefCnt(pa);
         }
         else {
           proc->killed = 1;    

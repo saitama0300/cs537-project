@@ -18,15 +18,15 @@ ld  -m    elf_i386 -nostdlib --omagic \
 dd if=/dev/zero of=xv6.img count=10000
 10000+0 records in
 10000+0 records out
-5120000 bytes (5.1 MB, 4.9 MiB) copied, 0.0104698 s, 489 MB/s
+5120000 bytes (5.1 MB, 4.9 MiB) copied, 0.00958794 s, 534 MB/s
 dd if=kernel/bootblock of=xv6.img conv=notrunc
 1+0 records in
 1+0 records out
-512 bytes copied, 6.8324e-05 s, 7.5 MB/s
+512 bytes copied, 4.4254e-05 s, 11.6 MB/s
 dd if=kernel/kernel of=xv6.img seek=1 conv=notrunc
 269+1 records in
 269+1 records out
-137856 bytes (138 kB, 135 KiB) copied, 0.000310458 s, 444 MB/s
+137916 bytes (138 kB, 135 KiB) copied, 0.0002911 s, 474 MB/s
 
 
 test build PASSED
@@ -221,12 +221,11 @@ cpu0: starting
 init: starting sh
 $ tester
 tester
-XV6_COW	 FAILED
+XV6_COW	 SUCCESS
 
 
-test test_3 FAILED (0 of 1)
+test test_3 PASSED (1 of 1)
  (Test that pages are copied on write and that the parent values are not affected by the child)
- tester failed
 
 starting test_4
 
@@ -482,12 +481,11 @@ cpu0: starting
 init: starting sh
 $ tester
 tester
-XV6_COW	 FAILED
+XV6_COW	 SUCCESS
 
 
-test test_7 FAILED (0 of 1)
+test test_7 PASSED (1 of 1)
  (Test that multiple copies are created when pages shared by more processes are modified)
- tester failed
 
 starting test_8
 
@@ -678,12 +676,11 @@ cpu0: starting
 init: starting sh
 $ tester
 tester
-XV6_COW	 FAILED
+XV6_COW	 SUCCESS
 
 
-test test_10 FAILED (0 of 1)
+test test_10 PASSED (1 of 1)
  (Test reference counting for CoW- new allocations from child don't affect parent)
- tester failed
 
 **********************************************************************
 Summary:
@@ -696,9 +693,8 @@ test test_1 PASSED (1 of 1)
 test test_2 PASSED (1 of 1)
  (Test that sbrk() reduces the number of free pages)
 
-test test_3 FAILED (0 of 1)
+test test_3 PASSED (1 of 1)
  (Test that pages are copied on write and that the parent values are not affected by the child)
- tester failed
 
 test test_4 PASSED (1 of 1)
  (Test that all pages are not copied when process forks - 1)
@@ -709,9 +705,8 @@ test test_5 PASSED (1 of 1)
 test test_6 PASSED (1 of 1)
  (Test that pages copied are equal to the pages written to)
 
-test test_7 FAILED (0 of 1)
+test test_7 PASSED (1 of 1)
  (Test that multiple copies are created when pages shared by more processes are modified)
- tester failed
 
 test test_8 PASSED (1 of 1)
  (Test that pages copied are equal to the pages written to - Modify non-contiguous pages)
@@ -719,10 +714,9 @@ test test_8 PASSED (1 of 1)
 test test_9 PASSED (1 of 1)
  (Test reference counting for CoW)
 
-test test_10 FAILED (0 of 1)
+test test_10 PASSED (1 of 1)
  (Test reference counting for CoW- new allocations from child don't affect parent)
- tester failed
 
-Passed 8 of 11 tests.
-Overall 8 of 11
-Points 7 of 10
+Passed 11 of 11 tests.
+Overall 11 of 11
+Points 10 of 10
