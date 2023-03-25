@@ -375,13 +375,11 @@ void CoWPageFaultHandler()
     pte_t *pte;
     pte = walkpgdir(proc->pgdir, (void*)va, 0);
 
-    if(proc==0) {
-      panic("");
-    }
+    if(proc==0) 
+        return;
 
-    if(PTE_W & *pte) {
-      panic("");
-    }
+    if(PTE_W & *pte)
+        return;
 
     uint userFlag = PTE_U&(*pte);
     uint presentFlag = PTE_P&(*pte);
@@ -395,7 +393,7 @@ void CoWPageFaultHandler()
     uint pa = PTE_ADDR(*pte);
     uint ref_cnt = freeCnt(pa>>PGSHIFT); 
     if(ref_cnt < 1) {
-        panic("");
+        return;
     }       
     else if(ref_cnt == 1)
     {
