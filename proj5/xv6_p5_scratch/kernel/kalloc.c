@@ -47,19 +47,28 @@ kfree(char *v)
 {
   struct run *r;
 
-  if((uint)v % PGSIZE || v < end || (uint)v >= PHYSTOP) 
+  if((uint)v % PGSIZE || v < end || PADDR(v) >= PHYSTOP)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
+  //memset(v, 1, PGSIZE);
+
 
   acquire(&kmem.lock);
   r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  int index = ((v) - (char*)PGROUNDUP((uint)end))/PGSIZE;
-  assert(kmem.ref_cnt[index] == 1);
-  kmem.ref_cnt[index] = 0; 
+
+  if(kmem.ref_cnt[PADDR(v) >> PGSHIFT] > 0)         // decrease reference count of page when freed
+    kmem.ref_cnt[PADDR(v) >> PGSHIFT] = kmem.ref_cnt[PADDR(v) >> PGSHIFT] - 1;
+
+  if(kmem.ref_cnt[PADDR(v) >> PGSHIFT] == 0){       // Free page only if no references to the page
+    
+    memset(v, 1, PGSIZE);     // Fill garbage to catch dangling refs.
+    r->next = kmem.freelist;
+    kmem.free_pages = kmem.free_pages + 1;
+    kmem.freelist = r;
+    
+  }
+
   release(&kmem.lock);
 }
 
@@ -75,8 +84,8 @@ kalloc(void)
   r = kmem.freelist;
   if(r) {
     kmem.freelist = r->next;
-    int index = (((char *)r) - (char*)PGROUNDUP((uint)end))/PGSIZE;
-    kmem.ref_cnt[index] = 1; 
+    kmem.ref_cnt[PADDR((char*)r) >> PGSHIFT] = 1;     // reference count page = one when allocated
+    kmem.free_pages = kmem.free_pages - 1;
   }
   release(&kmem.lock);
   return (char*)r;
@@ -86,4 +95,38 @@ int
 getFreePagesCount(void)
 {
   return kmem.free_pages;
+}
+
+void
+incrRefCnt(uint pa){
+  if(pa >= PHYSTOP || pa < (uint)PADDR(end))
+    panic("incrementReferenceCount"); 
+
+  acquire(&kmem.lock);
+
+  kmem.ref_cnt[pa >> PGSHIFT] = kmem.ref_cnt[pa >> PGSHIFT] + 1;
+
+  release(&kmem.lock); 
+}
+
+void
+decrRefCnt(uint pa){
+  if(pa >= PHYSTOP || pa < (uint)PADDR(end))
+    panic("decrementReferenceCount"); 
+
+  acquire(&kmem.lock);
+
+  kmem.ref_cnt[pa >> PGSHIFT] = kmem.ref_cnt[pa >> PGSHIFT] - 1;
+
+  release(&kmem.lock); 
+}
+
+int 
+isFree(void) {
+  return ((char*)kmem.freelist == 0);
+}
+
+int 
+freeCnt(uint index) {
+  return (kmem.ref_cnt[index]);
 }

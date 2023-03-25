@@ -302,7 +302,7 @@ copyuvm(pde_t *pgdir, uint sz)
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
-  char *mem;
+  // char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
@@ -311,20 +311,21 @@ copyuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), flags) < 0)
-      goto bad;
-  }
-  return d;
 
-bad:
-  freevm(d);
-  return 0;
+    *pte = (~ PTE_W) & *pte; 
+    flags = PTE_FLAGS(*pte);
+    pa = PTE_ADDR(*pte);
+
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) 
+    {
+        freevm(d);
+        lcr3(PADDR(pgdir)); 
+        return 0;
+    }
+    incrRefCnt(pa);
+  }
+  lcr3(PADDR(pgdir));
+  return d;
 }
 
 // Map user virtual address to kernel physical address.
@@ -365,4 +366,51 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+void CoWPageFaultHandler(void)
+{ 
+    uint va = rcr2();     
+
+    pte_t *pte;
+    pte = walkpgdir(proc->pgdir, (void*)va, 0);
+
+    if(proc==0) 
+        return;
+
+    if(PTE_W & *pte)
+        return;
+
+    uint userFlag = PTE_U&(*pte);
+    uint presentFlag = PTE_P&(*pte);
+
+    if( (pte == 0)  || !(*pte) || (va >= USERTOP) || !userFlag || !presentFlag )
+    { 
+        proc->killed = 1;
+        cprintf("CoW: Invalid virtual address\n");
+        return;
+    }
+    uint ref_cnt = freeCnt(PTE_ADDR(*pte)>>PGSHIFT); 
+    if(ref_cnt < 1) {
+      return;
+    }       
+    else if(ref_cnt == 1)
+    {
+        *pte = PTE_W | *pte; 
+    }
+    else                       
+    {
+        char* mem = kalloc();
+        if(mem != 0)  
+        {   
+          memmove(mem, (char*)PTE_ADDR(*pte), PGSIZE); 
+          *pte =  PTE_U | PTE_W | PTE_P | PADDR(mem);
+          decrRefCnt(PTE_ADDR(*pte));
+        }
+        else {
+          proc->killed = 1;    
+          return;
+        }     
+    }
+    lcr3(PTE_ADDR(proc->pgdir));
+    return;
 }
