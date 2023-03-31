@@ -84,7 +84,7 @@ kalloc(void)
   r = kmem.freelist;
   if(r) {
     kmem.freelist = r->next;
-    kmem.ref_cnt[PADDR((char*)r) >> PGSHIFT] = 1;     // reference count page = one when allocated
+    kmem.ref_cnt[PADDR((char*)r) >> PGSHIFT] = 1;    
     kmem.free_pages = kmem.free_pages - 1;
   }
   release(&kmem.lock);
@@ -100,7 +100,7 @@ getFreePagesCount(void)
 void
 incrRefCnt(uint pa){
   if(pa >= PHYSTOP || pa < (uint)PADDR(end))
-    panic("incrementReferenceCount"); 
+    return; 
 
   acquire(&kmem.lock);
 
@@ -112,7 +112,7 @@ incrRefCnt(uint pa){
 void
 decrRefCnt(uint pa){
   if(pa >= PHYSTOP || pa < (uint)PADDR(end))
-    panic("decrementReferenceCount"); 
+    return; 
 
   acquire(&kmem.lock);
 

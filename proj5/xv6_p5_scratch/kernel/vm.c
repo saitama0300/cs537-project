@@ -390,6 +390,7 @@ void CoWPageFaultHandler()
         cprintf("CoW: Invalid virtual address\n");
         return;
     }
+
     uint pa = PTE_ADDR(*pte);
     uint ref_cnt = freeCnt(pa>>PGSHIFT); 
     if(ref_cnt < 1) {
@@ -409,7 +410,8 @@ void CoWPageFaultHandler()
           decrRefCnt(pa);
         }
         else {
-          proc->killed = 1;    
+          proc->killed = 1; 
+          decrRefCnt(pa);   
           return;
         }     
     }
